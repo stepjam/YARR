@@ -63,14 +63,14 @@ class PrioritizedReplayBuffer(UniformReplayBuffer):
                 with open(join(self._save_dir, '%d.replay' % cursor), 'wb') as f:
                     pickle.dump(kwargs, f)
                 # If first add, then pad for correct wrapping
-                if self.add_count == 0:
+                if self._add_count == 0:
                     self._add_initial_to_disk(kwargs)
             else:
                 for name, data in kwargs.items():
                     self._store[name][cursor] = data
 
             self._sum_tree.set(self.cursor(), priority)
-            self.add_count += 1
+            self._add_count += 1
             self.invalid_range = invalid_range(
                 self.cursor(), self._replay_capacity, self._timesteps,
                 self._update_horizon)

@@ -53,7 +53,8 @@ class RolloutGenerator(object):
 
             replay_transition = ReplayTransition(
                 obs_and_replay_elems, act_result.action, transition.reward,
-                transition.terminal, timeout, summaries=transition.summaries)
+                transition.terminal, timeout, summaries=transition.summaries,
+                info={"active_task_id": env.active_task_id})
 
             if transition.terminal or timeout:
                 # If the agent gives us observations then we need to call act

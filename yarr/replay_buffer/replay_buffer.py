@@ -36,6 +36,9 @@ class ReplayBuffer(ABC):
     def cursor(self):
         pass
 
+    def set_cursor(self):
+        pass
+
     def get_range(self, array, start_index, end_index):
         pass
 

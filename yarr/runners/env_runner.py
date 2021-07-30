@@ -23,22 +23,29 @@ from yarr.utils.stat_accumulator import StatAccumulator
 class EnvRunner(object):
 
     def __init__(self,
-                 env: Env,
+                 train_env: Env,
                  agent: Agent,
-                 replay_buffer: ReplayBuffer,
-                 train_envs: int,
-                 eval_envs: int,
+                 train_replay_buffer: Union[ReplayBuffer, List[ReplayBuffer]],
+                 num_train_envs: int,
+                 num_eval_envs: int,
                  episodes: int,
                  episode_length: int,
+                 eval_env: Union[Env, None] = None,
+                 eval_replay_buffer: Union[ReplayBuffer, List[ReplayBuffer], None] = None,
                  stat_accumulator: Union[StatAccumulator, None] = None,
                  rollout_generator: RolloutGenerator = None,
                  weightsdir: str = None,
                  max_fails: int = 10):
-        self._env = env
+        self._train_env = train_env
+        self._eval_env = eval_env if eval_env else train_env
         self._agent = agent
-        self._train_envs = train_envs
-        self._eval_envs = eval_envs
-        self._replay_buffer = replay_buffer
+        self._train_envs = num_train_envs
+        self._eval_envs = num_eval_envs
+        self._train_replay_buffer = train_replay_buffer if isinstance(train_replay_buffer, list) else [train_replay_buffer]
+        self._timesteps = self._train_replay_buffer[0].timesteps
+        if eval_replay_buffer is not None:
+            eval_replay_buffer = eval_replay_buffer if isinstance(eval_replay_buffer, list) else [eval_replay_buffer]
+        self._eval_replay_buffer = eval_replay_buffer
         self._episodes = episodes
         self._episode_length = episode_length
         self._stat_accumulator = stat_accumulator
@@ -78,14 +85,17 @@ class EnvRunner(object):
             if self._step_signal.value % self.log_freq == 0 and self._step_signal.value > 0:
                 self._internal_env_runner.agent_summaries[:] = []
             for name, transition, eval in self._internal_env_runner.stored_transitions:
-                if not eval:
+                add_to_buffer = (not eval) or self._eval_replay_buffer is not None
+                if add_to_buffer:
                     kwargs = dict(transition.observation)
-                    self._replay_buffer.add(
+                    replay_index = transition.info["active_task_id"]
+                    rb = self._eval_replay_buffer[replay_index] if eval else self._train_replay_buffer[replay_index]
+                    rb.add(
                         np.array(transition.action), transition.reward,
                         transition.terminal,
                         transition.timeout, **kwargs)
                     if transition.terminal:
-                        self._replay_buffer.add_final(
+                        rb.add_final(
                             **transition.final_observation)
                 new_transitions[name] += 1
                 self._new_transitions[
@@ -99,7 +109,7 @@ class EnvRunner(object):
 
     def _run(self, save_load_lock):
         self._internal_env_runner = _EnvRunner(
-            self._env, self._env, self._agent, self._replay_buffer.timesteps, self._train_envs,
+            self._train_env, self._eval_env, self._agent, self._timesteps, self._train_envs,
             self._eval_envs, self._episodes, self._episode_length, self._kill_signal,
             self._step_signal, self._rollout_generator, save_load_lock,
             self.current_replay_ratio, self.target_replay_ratio,

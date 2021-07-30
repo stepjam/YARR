@@ -78,7 +78,7 @@ class UniformReplayBuffer(ReplayBuffer):
     at sample time.
 
     Attributes:
-      add_count: int, counter of how many transitions have been added (including
+      _add_count: int, counter of how many transitions have been added (including
         the blank ones at the beginning of an episode).
       invalid_range: np.array, an array with the indices of cursor-related invalid
         transitions
@@ -172,7 +172,7 @@ class UniformReplayBuffer(ReplayBuffer):
         self._create_storage()
 
         self._lock = Lock()
-        self.add_count = np.array(0)
+        self._add_count = np.array(0)
 
         self._replay_capacity = replay_capacity
 
@@ -315,13 +315,13 @@ class UniformReplayBuffer(ReplayBuffer):
                 with open(join(self._save_dir, '%d.replay' % cursor), 'wb') as f:
                     pickle.dump(kwargs, f)
                 # If first add, then pad for correct wrapping
-                if self.add_count == 0:
+                if self._add_count == 0:
                     self._add_initial_to_disk(kwargs)
             else:
                 for name, data in kwargs.items():
                     self._store[name][cursor] = data
 
-            self.add_count += 1
+            self._add_count += 1
             self.invalid_range = invalid_range(
                 self.cursor(), self._replay_capacity, self._timesteps,
                 self._update_horizon)
@@ -398,15 +398,23 @@ class UniformReplayBuffer(ReplayBuffer):
 
     def is_empty(self):
         """Is the Replay Buffer empty?"""
-        return self.add_count == 0
+        return self._add_count == 0
 
     def is_full(self):
         """Is the Replay Buffer full?"""
-        return self.add_count >= self._replay_capacity
+        return self._add_count >= self._replay_capacity
 
     def cursor(self):
         """Index to the location where the next transition will be written."""
-        return self.add_count % self._replay_capacity
+        return self._add_count % self._replay_capacity
+
+    @property
+    def add_count(self):
+        return self._add_count.copy()
+
+    @add_count.setter
+    def add_count(self, count: int):
+        self._add_count = np.array(count)
 
     def get_range(self, array, start_index, end_index):
         """Returns the range of array at the index handling wraparound if necessary.

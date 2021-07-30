@@ -42,7 +42,8 @@ class PyTorchTrainRunner(TrainRunner):
                  save_freq: int = 100,
                  replay_ratio: Optional[float] = None,
                  tensorboard_logging: bool = True,
-                 csv_logging: bool = False
+                 csv_logging: bool = False,
+                 buffers_per_batch: int = -1  # -1 = all
                  ):
         super(PyTorchTrainRunner, self).__init__(
             agent, env_runner, wrapped_replay_buffer,
@@ -58,8 +59,9 @@ class PyTorchTrainRunner(TrainRunner):
             [1.0] if replay_buffer_sample_rates is None else
             replay_buffer_sample_rates)
         if len(self._replay_buffer_sample_rates) != len(wrapped_replay_buffer):
-            raise ValueError(
-                'Numbers of replay buffers differs from sampling rates.')
+            logging.warning(
+                'Numbers of replay buffers differs from sampling rates. Setting as uniform sampling.')
+            self._replay_buffer_sample_rates = [1.0 / len(self._wrapped_buffer)] * len(self._wrapped_buffer)
         if sum(self._replay_buffer_sample_rates) != 1:
             raise ValueError('Sum of sampling rates should be 1.')
 
@@ -82,6 +84,7 @@ class PyTorchTrainRunner(TrainRunner):
                 "'weightsdir' was None. No weight saving will take place.")
         else:
             os.makedirs(self._weightsdir, exist_ok=True)
+        self._buffers_per_batch = buffers_per_batch if buffers_per_batch > 0 else len(wrapped_replay_buffer)
 
     def _save_model(self, i):
         with self._save_load_lock:
@@ -96,13 +99,19 @@ class PyTorchTrainRunner(TrainRunner):
 
     def _step(self, i, sampled_batch):
         update_dict = self._agent.update(i, sampled_batch)
+        priority = update_dict['priority'].cpu().detach().numpy() if isinstance(update_dict['priority'], torch.Tensor) else np.numpy(update_dict['priority'])
+        indices = sampled_batch['indices'].cpu().detach().numpy()
         acc_bs = 0
-        for wb in self._wrapped_buffer:
+        for wb_idx, wb in enumerate(self._wrapped_buffer):
             bs = wb.replay_buffer.batch_size
             if 'priority' in update_dict:
-                wb.replay_buffer.set_priority(
-                    sampled_batch['indices'][acc_bs:acc_bs+bs].cpu().detach().numpy(),
-                    update_dict['priority'][acc_bs:acc_bs+bs])
+                indices_ = indices[:, wb_idx]
+                if len(priority.shape) > 1:
+                    priority_ = priority[:, wb_idx]
+                else:
+                    # legacy version
+                    priority_ = priority[acc_bs: acc_bs + bs]
+                wb.replay_buffer.set_priority(indices_, priority_)
             acc_bs += bs
 
     def _signal_handler(self, sig, frame):
@@ -147,7 +156,8 @@ class PyTorchTrainRunner(TrainRunner):
         data_iter = [iter(d) for d in datasets]
 
         init_replay_size = self._get_sum_add_counts().astype(float)
-        batch_size = sum([r.replay_buffer.batch_size for r in self._wrapped_buffer])
+        batch_times_buffers_per_sample = sum([
+            r.replay_buffer.batch_size for r in self._wrapped_buffer[:self._buffers_per_batch]])
         process = psutil.Process(os.getpid())
         num_cpu = psutil.cpu_count()
 
@@ -160,7 +170,7 @@ class PyTorchTrainRunner(TrainRunner):
                 process.cpu_percent(interval=None)
 
             def get_replay_ratio():
-                size_used = batch_size * i
+                size_used = batch_times_buffers_per_sample * i
                 size_added = (
                     self._get_sum_add_counts()
                     - init_replay_size
@@ -182,16 +192,16 @@ class PyTorchTrainRunner(TrainRunner):
                 del replay_ratio
 
             t = time.time()
-            sampled_batch = [next(di) for di in data_iter]
-            if len(sampled_batch) > 1:
-                result = {}
-                for key in sampled_batch[0]:
-                    result[key] = torch.cat([d[key] for d in sampled_batch], 0)
-                sampled_batch = result
-            else:
-                sampled_batch = sampled_batch[0]
 
+            sampled_task_ids = np.random.choice(
+                range(len(datasets)), self._buffers_per_batch, replace=False)
+            sampled_batch = [next(data_iter[j]) for j in sampled_task_ids]
+            result = {}
+            for key in sampled_batch[0]:
+                result[key] = torch.stack([d[key] for d in sampled_batch], 1)
+            sampled_batch = result
             sample_time = time.time() - t
+
             batch = {k: v.to(self._train_device) for k, v in sampled_batch.items()}
             t = time.time()
             self._step(i, batch)
@@ -225,10 +235,10 @@ class PyTorchTrainRunner(TrainRunner):
 
                 self._writer.add_scalar(
                     i, 'monitoring/sample_time_per_item',
-                    sample_time / batch_size)
+                    sample_time / batch_times_buffers_per_sample)
                 self._writer.add_scalar(
                     i, 'monitoring/train_time_per_item',
-                    step_time / batch_size)
+                    step_time / batch_times_buffers_per_sample)
                 self._writer.add_scalar(
                     i, 'monitoring/memory_gb',
                     process.memory_info().rss * 1e-9)
