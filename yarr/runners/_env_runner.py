@@ -9,13 +9,14 @@ import numpy as np
 from yarr.agents.agent import Agent
 from yarr.envs.env import Env
 from yarr.utils.rollout_generator import RolloutGenerator
+from multiprocessing import get_start_method, set_start_method
 
 
-# try:
-#     if get_start_method() != 'spawn':
-#         set_start_method('spawn', force=True)
-# except RuntimeError:
-#     pass
+try:
+    if get_start_method() != 'spawn':
+        set_start_method('spawn', force=True)
+except RuntimeError:
+    pass
 
 
 class _EnvRunner(object):
