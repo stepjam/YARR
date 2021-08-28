@@ -9,7 +9,7 @@ from typing import List
 from typing import Union
 
 import numpy as np
-
+import torch
 from yarr.agents.agent import Agent
 from yarr.agents.agent import ScalarSummary
 from yarr.agents.agent import Summary
@@ -35,7 +35,8 @@ class EnvRunner(object):
                  stat_accumulator: Union[StatAccumulator, None] = None,
                  rollout_generator: RolloutGenerator = None,
                  weightsdir: str = None,
-                 max_fails: int = 10):
+                 max_fails: int = 10,
+                 env_device: torch.device = None):
         self._train_env = train_env
         self._eval_env = eval_env if eval_env else train_env
         self._agent = agent
@@ -52,8 +53,10 @@ class EnvRunner(object):
         self._rollout_generator = (
             RolloutGenerator() if rollout_generator is None
             else rollout_generator)
+        self._rollout_generator._env_device = env_device
         self._weightsdir = weightsdir
         self._max_fails = max_fails
+        self._env_device = env_device
         self._previous_loaded_weight_folder = ''
         self._p = None
         self._kill_signal = Value('b', 0)
@@ -113,7 +116,7 @@ class EnvRunner(object):
             self._eval_envs, self._episodes, self._episode_length, self._kill_signal,
             self._step_signal, self._rollout_generator, save_load_lock,
             self.current_replay_ratio, self.target_replay_ratio,
-            self._weightsdir)
+            self._weightsdir, self._env_device)
         training_envs = self._internal_env_runner.spin_up_envs('train_env', self._train_envs, False)
         eval_envs = self._internal_env_runner.spin_up_envs('eval_env', self._eval_envs, True)
         envs = training_envs + eval_envs

@@ -3,14 +3,14 @@ import logging
 import os
 import time
 from multiprocessing import Process, Manager
+from multiprocessing import get_start_method, set_start_method
 from typing import Any
 
 import numpy as np
+import torch
 from yarr.agents.agent import Agent
 from yarr.envs.env import Env
 from yarr.utils.rollout_generator import RolloutGenerator
-from multiprocessing import get_start_method, set_start_method
-
 
 try:
     if get_start_method() != 'spawn':
@@ -37,6 +37,7 @@ class _EnvRunner(object):
                  current_replay_ratio,
                  target_replay_ratio,
                  weightsdir: str = None,
+                 env_device: torch.device = None
                  ):
         self._train_env = train_env
         self._eval_env = eval_env
@@ -47,6 +48,7 @@ class _EnvRunner(object):
         self._episode_length = episode_length
         self._rollout_generator = rollout_generator
         self._weightsdir = weightsdir
+        self._env_device = env_device
         self._previous_loaded_weight_folder = ''
 
         self._timesteps = timesteps
@@ -117,7 +119,7 @@ class _EnvRunner(object):
 
         self._agent = copy.deepcopy(self._agent)
 
-        self._agent.build(training=False)
+        self._agent.build(training=False, device=self._env_device)
 
         logging.info('%s: Launching env.' % name)
         np.random.seed()

@@ -2,3 +2,7 @@ tensorboard
 moviepy
 psutil
 timeout-decorator
+pyrender
+omegaconf
+hydra-core
+
