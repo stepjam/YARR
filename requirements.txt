@@ -1,5 +1,6 @@
 tensorboard
 moviepy
+natsort
 psutil
 timeout-decorator
 pyrender
