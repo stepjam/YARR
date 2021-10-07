@@ -1,12 +1,12 @@
 from typing import Type, List
 
 import numpy as np
+
 try:
-    from rlbench import ObservationConfig, Environment, CameraConfig
+    from rlbench import ObservationConfig, Environment, CameraConfig, ActionMode
 except (ModuleNotFoundError, ImportError) as e:
     print("You need to install RLBench: 'https://github.com/stepjam/RLBench'")
     raise e
-from rlbench.action_modes import ActionMode
 from rlbench.backend.observation import Observation
 from rlbench.backend.task import Task
 
@@ -69,7 +69,7 @@ def _get_cam_observation_elements(camera: CameraConfig, prefix: str, channels_la
             ObservationElement('%s_camera_intrinsics' % prefix, (3, 3),
                                np.float32))
     if camera.depth:
-        shape = img_s + [1] if schannels_last else [1] + img_s
+        shape = img_s + [1] if channels_last else [1] + img_s
         elements.append(
             ObservationElement('%s_depth' % prefix, shape, np.float32))
     if camera.mask:
@@ -108,6 +108,8 @@ def _observation_elements(observation_config, channels_last) -> List[Observation
         observation_config.front_camera, 'front', channels_last))
     elements.extend(_get_cam_observation_elements(
         observation_config.wrist_camera, 'wrist', channels_last))
+    elements.extend(_get_cam_observation_elements(
+        observation_config.overhead_camera, 'overhead', channels_last))
     return elements
 
 
@@ -180,7 +182,6 @@ class MultiTaskRLBenchEnv(MultiTaskEnv):
             dataset_root=dataset_root, headless=headless)
         self._task = None
         self._swap_task_every = swap_task_every
-        self._rlbench_env
         self._episodes_this_task = 0
 
     def _set_new_task(self):
