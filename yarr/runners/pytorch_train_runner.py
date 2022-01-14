@@ -99,19 +99,23 @@ class PyTorchTrainRunner(TrainRunner):
 
     def _step(self, i, sampled_batch):
         update_dict = self._agent.update(i, sampled_batch)
-        priority = update_dict['priority'].cpu().detach().numpy() if isinstance(update_dict['priority'], torch.Tensor) else np.numpy(update_dict['priority'])
+        if "priority" in update_dict:
+            priority = update_dict['priority'].cpu().detach().numpy() if isinstance(update_dict['priority'], torch.Tensor) else np.numpy(update_dict['priority'])
+        else:
+            priority = None
         indices = sampled_batch['indices'].cpu().detach().numpy()
         acc_bs = 0
         for wb_idx, wb in enumerate(self._wrapped_buffer):
             bs = wb.replay_buffer.batch_size
             if 'priority' in update_dict:
                 indices_ = indices[:, wb_idx]
-                if len(priority.shape) > 1:
-                    priority_ = priority[:, wb_idx]
-                else:
-                    # legacy version
-                    priority_ = priority[acc_bs: acc_bs + bs]
-                wb.replay_buffer.set_priority(indices_, priority_)
+                if hasattr(wb, "replay_buffer"):
+                    if len(priority.shape) > 1:
+                        priority_ = priority[:, wb_idx]
+                    else:
+                        # legacy version
+                        priority_ = priority[acc_bs: acc_bs + bs]
+                    wb.replay_buffer.set_priority(indices_, priority_)
             acc_bs += bs
 
     def _signal_handler(self, sig, frame):
