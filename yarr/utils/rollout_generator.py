@@ -21,7 +21,7 @@ class RolloutGenerator(object):
         obs_history = {k: [np.array(v, dtype=self._get_type(v))] * timesteps for k, v in obs.items()}
         for step in range(episode_length):
 
-            prepped_data = {k:torch.tensor([v], device=self._env_device) for k, v in obs_history.items()}
+            prepped_data = {k:torch.tensor(np.array(v)[None], device=self._env_device) for k, v in obs_history.items()}
 
             act_result = agent.act(step_signal.value, prepped_data,
                                    deterministic=eval)
