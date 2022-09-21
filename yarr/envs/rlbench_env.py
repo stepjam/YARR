@@ -6,7 +6,7 @@ try:
 except (ModuleNotFoundError, ImportError) as e:
     print("You need to install RLBench: 'https://github.com/stepjam/RLBench'")
     raise e
-from rlbench.action_modes import ActionMode
+from rlbench import ActionMode
 from rlbench.backend.observation import Observation
 from rlbench.backend.task import Task
 
