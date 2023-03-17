@@ -223,7 +223,7 @@ class UniformReplayBuffer(ReplayBuffer):
             ReplayElement(ACTION, self._action_shape, self._action_dtype),
             ReplayElement(REWARD, self._reward_shape, self._reward_dtype),
             ReplayElement(TERMINAL, (), np.int8),
-            ReplayElement(TIMEOUT, (), np.bool),
+            ReplayElement(TIMEOUT, (), bool),
         ]
 
         obs_elements = []
@@ -666,7 +666,7 @@ class UniformReplayBuffer(ReplayBuffer):
                 else:
                     # np.argmax of a bool array returns index of the first True.
                     trajectory_length = np.argmax(
-                        trajectory_terminals.astype(np.bool),
+                        trajectory_terminals.astype(bool),
                         0) + 1
 
                 next_state_index = state_index + trajectory_length
@@ -738,7 +738,7 @@ class UniformReplayBuffer(ReplayBuffer):
             ReplayElement(REWARD, (batch_size,) + self._reward_shape,
                           self._reward_dtype),
             ReplayElement(TERMINAL, (batch_size,), np.int8),
-            ReplayElement(TIMEOUT, (batch_size,), np.bool),
+            ReplayElement(TIMEOUT, (batch_size,), bool),
             ReplayElement(INDICES, (batch_size,), np.int32),
         ]
 
