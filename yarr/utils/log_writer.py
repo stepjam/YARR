@@ -17,6 +17,7 @@ class LogWriter(object):
                  tensorboard_logging: bool,
                  csv_logging: bool,
                  wandb_logging: bool,
+                 wandb_cfg: dict = None,
                  project_name: str = 'c2farm'):
         self._tensorboard_logging = tensorboard_logging
         self._csv_logging = csv_logging
@@ -31,6 +32,7 @@ class LogWriter(object):
         if wandb_logging:
             wandb.init(
                 project=project_name,
+                config=wandb_cfg
             )
     def add_scalar(self, i, name, value):
         if self._tensorboard_logging:
