@@ -137,6 +137,11 @@ def _observation_elements(
             observation_config.wrist_camera, "wrist", channels_last
         )
     )
+    elements.extend(
+        _get_cam_observation_elements(
+            observation_config.overhead_camera, "overhead", channels_last
+        )
+    )
     return elements
 
 
