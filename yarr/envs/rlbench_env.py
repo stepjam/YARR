@@ -84,7 +84,7 @@ def _get_cam_observation_elements(camera: CameraConfig, prefix: str, channels_la
             ObservationElement("%s_camera_intrinsics" % prefix, (3, 3), np.float32)
         )
     if camera.depth:
-        shape = img_s + [1] if schannels_last else [1] + img_s
+        shape = img_s + [1] if channels_last else [1] + img_s
         elements.append(ObservationElement("%s_depth" % prefix, shape, np.float32))
     if camera.mask:
         raise NotImplementedError()
@@ -135,6 +135,11 @@ def _observation_elements(
     elements.extend(
         _get_cam_observation_elements(
             observation_config.wrist_camera, "wrist", channels_last
+        )
+    )
+    elements.extend(
+        _get_cam_observation_elements(
+            observation_config.overhead_camera, "overhead", channels_last
         )
     )
     return elements

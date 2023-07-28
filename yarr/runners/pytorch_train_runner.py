@@ -43,6 +43,9 @@ class PyTorchTrainRunner(TrainRunner):
                  replay_ratio: Optional[float] = None,
                  tensorboard_logging: bool = True,
                  csv_logging: bool = False,
+                 wandb_logging: bool = True,
+                 wandb_cfg: dict = {},
+                 project_name: str = "c2farm",
                  buffers_per_batch: int = -1  # -1 = all
                  ):
         super(PyTorchTrainRunner, self).__init__(
@@ -78,7 +81,7 @@ class PyTorchTrainRunner(TrainRunner):
             logging.info("'logdir' was None. No logging will take place.")
         else:
             self._writer = LogWriter(
-                self._logdir, tensorboard_logging, csv_logging)
+                self._logdir, tensorboard_logging, csv_logging, wandb_logging, wandb_cfg, project_name)
         if weightsdir is None:
             logging.info(
                 "'weightsdir' was None. No weight saving will take place.")
