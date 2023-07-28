@@ -30,9 +30,16 @@ class LogWriter(object):
             self._csv_file = os.path.join(logdir, 'data.csv')
             self._field_names = None
         if wandb_logging:
+            try:
+                task_name = wandb_cfg['rlbench']['task']
+                method_name = wandb_cfg['method']['name']
+                exp_name = task_name + '-' + method_name
+            except:
+                exp_name = None
             wandb.init(
                 project=project_name,
-                config=wandb_cfg
+                config=wandb_cfg,
+                name=exp_name
             )
     def add_scalar(self, i, name, value):
         if self._tensorboard_logging:
